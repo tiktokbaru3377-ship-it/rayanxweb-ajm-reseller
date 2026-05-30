@@ -18,7 +18,7 @@ async function handler(req, res) {
     try {
         const { packageName, price, name, telegram, whatsapp } = req.body;
         if (!packageName || !price || !name || !telegram || !whatsapp) {
-            return res.status(400).json({ success: false, message: 'Data formulir tidak lengkap.' });
+            return res.status(400).json({ success: false, message: 'Formulir data kiriman tidak lengkap.' });
         }
 
         const va = process.env.IPAYMU_VA;
@@ -31,7 +31,7 @@ async function handler(req, res) {
         const orderId = 'AJM-' + Date.now();
         const formatHarga = parseInt(price).toLocaleString('id-ID');
 
-        // Membentuk struktur data request persis mengikuti repositori ipaymu-payment-v2-sample-nodejs
+        // Menyusun susunan data sesuai spesifikasi SDK github.com/ipaymu
         const body = {
             product: [packageName],
             qty: [1],
@@ -70,14 +70,13 @@ async function handler(req, res) {
         });
 
         const result = await response.json();
-
         if (result.Status !== 200) {
-            throw new Error(result.Message || 'Gagal melakukan jabat tangan dengan API iPaymu.');
+            throw new Error(result.Message || 'Gagal tersambung dengan API iPaymu.');
         }
 
         const paymentUrl = result.Data.Url;
 
-        // Log Ke Telegram Admin (Notifikasi Invoice Baru Terbit)
+        // Kirim Informasi Log Transaksi Masuk ke Telegram Admin/Reseller
         const pesanTelegram = 
 `📝 *INVOICE BARU DIBUAT* 📝
 -----------------------------------------
@@ -89,7 +88,7 @@ async function handler(req, res) {
 📱 *WhatsApp:* ${whatsapp}
 -----------------------------------------
 🔗 *Link Pembayaran:* ${paymentUrl}
-⏳ _Menunggu proses transaksi selesai..._`;
+⏳ _Menunggu proses pembayaran oleh pengguna..._`;
 
         await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
             method: 'POST',
