@@ -14,28 +14,35 @@ function allowCors(fn) {
 
 async function handler(req, res) {
     try {
-        const IPAYMU_VA = process.env.IPAYMU_VA;
-        const IPAYMU_KEY = process.env.IPAYMU_KEY;
-        const IS_PRODUCTION = process.env.IPAYMU_SANDBOX !== 'true';
+        const va = process.env.IPAYMU_VA;
+        const apiKey = process.env.IPAYMU_KEY;
+        const isProduction = process.env.IPAYMU_SANDBOX !== 'true';
 
         const bodyEncrypt = JSON.stringify({});
         const requestBodyHash = crypto.createHash('sha256').update(bodyEncrypt).digest('hex').toLowerCase();
-        const stringToSign = `POST:${IPAYMU_VA}:${requestBodyHash}:${IPAYMU_KEY}`;
-        const signature = crypto.createHmac('sha256', IPAYMU_KEY).update(stringToSign).digest('hex');
+        const stringToSign = `POST:${va}:${requestBodyHash}:${apiKey}`;
+        const signature = crypto.createHmac('sha256', apiKey).update(stringToSign).digest('hex');
 
-        const ipaymuUrl = IS_PRODUCTION ? 'https://my.ipaymu.com/api/v2/balance' : 'https://sandbox.ipaymu.com/api/v2/balance';
+        const url = isProduction 
+            ? 'https://my.ipaymu.com/api/v2/balance' 
+            : 'https://sandbox.ipaymu.com/api/v2/balance';
 
-        const response = await fetch(ipaymuUrl, {
+        const response = await fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'va': IPAYMU_VA, 'signature': signature },
+            headers: {
+                'Content-Type': 'application/json',
+                'va': va,
+                'signature': signature
+            },
             body: bodyEncrypt
         });
 
         const data = await response.json();
+
         if (data.Status === 200) {
             return res.status(200).json({
                 success: true,
-                merchant_va: IPAYMU_VA,
+                merchant_va: va,
                 balance: data.Data.Balance,
                 formatted_balance: "Rp " + parseInt(data.Data.Balance).toLocaleString('id-ID')
             });
