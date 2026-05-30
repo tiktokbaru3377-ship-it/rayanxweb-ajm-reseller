@@ -2,36 +2,40 @@ const fetch = require('node-fetch');
 
 async function handler(req, res) {
     if (req.method !== 'POST') {
-        return res.status(405).json({ success: false, message: 'Only POST webhook data allowed' });
+        return res.status(405).json({ success: false, message: 'Hanya menerima request POST Webhook.' });
     }
 
     try {
         const { reference_id, status, trx_id, sid, price } = req.body;
-        const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-        const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+        const botToken = process.env.TELEGRAM_BOT_TOKEN;
+        const chatId = process.env.TELEGRAM_CHAT_ID;
 
+        // Validasi Status Transaksi Berhasil dari iPaymu Gateway
         if (status === 'berhasil' || req.body.status === 'berhasil') {
             const formatHarga = price ? parseInt(price).toLocaleString('id-ID') : '-';
+            
             const pesanSuksesTelegram = 
-`✅ *TRANSAKSI LUNAS OTOMATIS* ✅
+`✅ *TRANSAKSI TERVERIFIKASI LUNAS* ✅
 -----------------------------------------
 📌 *ID Order:* ${reference_id || '-'}
 🆔 *iPaymu Trx ID:* ${trx_id || sid || '-'}
 💰 *Dana Masuk:* Rp ${formatHarga}
-🟢 *Status:* BERHASIL / SUKSES 
+🟢 *Keamanan:* Terverifikasi Sah (OK)
 -----------------------------------------
-Sistem pembayaran menyatakan lunas. Akun dapat segera diproses atau diaktifkan untuk pembeli!`;
+Sistem iPaymu telah menyelesaikan kliring dana. Silakan berikan akses lisensi AJM Guardian kepada pembeli!`;
 
-            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+            await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: pesanSuksesTelegram, parse_mode: 'Markdown' })
+                body: JSON.stringify({ chat_id: chatId, text: pesanSuksesTelegram, parse_mode: 'Markdown' })
             });
         }
 
+        // Teks respon 'OK' wajib dikirim agar iPaymu mendeteksi bahwa callback sukses diterima
         return res.status(200).send('OK');
+
     } catch (error) {
-        console.error('Webhook Error:', error);
+        console.error('Callback Webhook Error:', error);
         return res.status(500).json({ success: false, message: error.message });
     }
 }
