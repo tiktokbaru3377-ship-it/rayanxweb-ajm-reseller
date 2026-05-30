@@ -10,7 +10,7 @@ async function handler(req, res) {
         const botToken = process.env.TELEGRAM_BOT_TOKEN;
         const chatId = process.env.TELEGRAM_CHAT_ID;
 
-        // Validasi Status Transaksi Berhasil dari iPaymu Gateway
+        // Mengecek status respon lunas dari server gateway iPaymu
         if (status === 'berhasil' || req.body.status === 'berhasil') {
             const formatHarga = price ? parseInt(price).toLocaleString('id-ID') : '-';
             
@@ -22,7 +22,7 @@ async function handler(req, res) {
 💰 *Dana Masuk:* Rp ${formatHarga}
 🟢 *Keamanan:* Terverifikasi Sah (OK)
 -----------------------------------------
-Sistem iPaymu telah menyelesaikan kliring dana. Silakan berikan akses lisensi AJM Guardian kepada pembeli!`;
+Sistem iPaymu menyatakan pembayaran valid. Silakan berikan lisensi AJM Guardian kepada pembeli!`;
 
             await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
                 method: 'POST',
@@ -31,11 +31,11 @@ Sistem iPaymu telah menyelesaikan kliring dana. Silakan berikan akses lisensi AJ
             });
         }
 
-        // Teks respon 'OK' wajib dikirim agar iPaymu mendeteksi bahwa callback sukses diterima
+        // Respon teks 'OK' wajib dikirim agar server iPaymu tahu callback sukses diterima
         return res.status(200).send('OK');
 
     } catch (error) {
-        console.error('Callback Webhook Error:', error);
+        console.error('Callback Error:', error);
         return res.status(500).json({ success: false, message: error.message });
     }
 }
