@@ -18,52 +18,66 @@ async function handler(req, res) {
     try {
         const { packageName, price, name, telegram, whatsapp } = req.body;
         if (!packageName || !price || !name || !telegram || !whatsapp) {
-            return res.status(400).json({ success: false, message: 'Data input tidak lengkap.' });
+            return res.status(400).json({ success: false, message: 'Data formulir tidak lengkap.' });
         }
 
-        const IPAYMU_VA = process.env.IPAYMU_VA;
-        const IPAYMU_KEY = process.env.IPAYMU_KEY;
-        const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-        const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
-        const BACKEND_DOMAIN = process.env.BACKEND_DOMAIN || 'https://domain-anda.vercel.app';
-        const IS_PRODUCTION = process.env.IPAYMU_SANDBOX !== 'true';
+        const va = process.env.IPAYMU_VA;
+        const apiKey = process.env.IPAYMU_KEY;
+        const botToken = process.env.TELEGRAM_BOT_TOKEN;
+        const chatId = process.env.TELEGRAM_CHAT_ID;
+        const backendDomain = process.env.BACKEND_DOMAIN || 'https://domain-anda.vercel.app';
+        const isProduction = process.env.IPAYMU_SANDBOX !== 'true';
 
         const orderId = 'AJM-' + Date.now();
         const formatHarga = parseInt(price).toLocaleString('id-ID');
 
-        const bodyIpaymu = {
+        // Membentuk struktur data request persis mengikuti repositori ipaymu-payment-v2-sample-nodejs
+        const body = {
             product: [packageName],
             qty: [1],
             price: [parseInt(price)],
-            description: `Pembelian ${packageName} senilai Rp ${formatHarga}`,
-            returnUrl: `https://t.me/Rayanxweb37`,
-            cancelUrl: `https://t.me/Rayanxweb37`,
-            notifyUrl: `${BACKEND_DOMAIN}/api/callback`,
+            description: [`Pembelian ${packageName} - AJM Guardian`],
+            returnUrl: 'https://t.me/Rayanxweb37',
+            cancelUrl: 'https://t.me/Rayanxweb37',
+            notifyUrl: `${backendDomain}/api/callback`,
             referenceId: orderId,
             buyerName: name,
             buyerPhone: whatsapp,
-            buyerEmail: 'buyer@ajmguardian.store'
+            buyerEmail: 'buyer@ajmguardian.store',
+            weight: [0],
+            height: [0],
+            length: [0],
+            width: [0]
         };
 
-        const bodyEncrypt = JSON.stringify(bodyIpaymu);
+        const bodyEncrypt = JSON.stringify(body);
         const requestBodyHash = crypto.createHash('sha256').update(bodyEncrypt).digest('hex').toLowerCase();
-        const stringToSign = `POST:${IPAYMU_VA}:${requestBodyHash}:${IPAYMU_KEY}`;
-        const signature = crypto.createHmac('sha256', IPAYMU_KEY).update(stringToSign).digest('hex');
+        const stringToSign = `POST:${va}:${requestBodyHash}:${apiKey}`;
+        const signature = crypto.createHmac('sha256', apiKey).update(stringToSign).digest('hex');
 
-        const ipaymuUrl = IS_PRODUCTION ? 'https://my.ipaymu.com/api/v2/payment' : 'https://sandbox.ipaymu.com/api/v2/payment';
+        const url = isProduction 
+            ? 'https://my.ipaymu.com/api/v2/payment' 
+            : 'https://sandbox.ipaymu.com/api/v2/payment';
 
-        const ipaymuResponse = await fetch(ipaymuUrl, {
+        const response = await fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'va': IPAYMU_VA, 'signature': signature },
+            headers: {
+                'Content-Type': 'application/json',
+                'va': va,
+                'signature': signature
+            },
             body: bodyEncrypt
         });
 
-        const ipaymuData = await ipaymuResponse.json();
-        if (ipaymuData.Status !== 200) throw new Error(ipaymuData.Message || 'Kesalahan handshake API iPaymu.');
+        const result = await response.json();
 
-        const paymentUrl = ipaymuData.Data.Url;
+        if (result.Status !== 200) {
+            throw new Error(result.Message || 'Gagal melakukan jabat tangan dengan API iPaymu.');
+        }
 
-        // Telegram Notification (Menunggu Pembayaran)
+        const paymentUrl = result.Data.Url;
+
+        // Log Ke Telegram Admin (Notifikasi Invoice Baru Terbit)
         const pesanTelegram = 
 `📝 *INVOICE BARU DIBUAT* 📝
 -----------------------------------------
@@ -75,16 +89,18 @@ async function handler(req, res) {
 📱 *WhatsApp:* ${whatsapp}
 -----------------------------------------
 🔗 *Link Pembayaran:* ${paymentUrl}
-⏳ _Menunggu konfirmasi penyelesaian pembayaran oleh user..._`;
+⏳ _Menunggu proses transaksi selesai..._`;
 
-        await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: pesanTelegram, parse_mode: 'Markdown' })
+            body: JSON.stringify({ chat_id: chatId, text: pesanTelegram, parse_mode: 'Markdown' })
         });
 
         return res.status(200).json({ success: true, paymentUrl });
+
     } catch (error) {
+        console.error('Payment Error:', error);
         return res.status(500).json({ success: false, message: error.message });
     }
 }
