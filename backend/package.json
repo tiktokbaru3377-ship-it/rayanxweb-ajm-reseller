@@ -1,0 +1,13 @@
+{
+  "name": "ajm-payment-backend",
+  "version": "1.1.0",
+  "description": "Full Modular Payment Gateway Backend for AJM Guardian via iPaymu Ecosystem",
+  "main": "api/payment.js",
+  "scripts": {
+    "start": "node api/payment.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "node-fetch": "^2.7.0"
+  }
+}
