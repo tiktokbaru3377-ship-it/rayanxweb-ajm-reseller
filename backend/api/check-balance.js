@@ -29,16 +29,11 @@ async function handler(req, res) {
 
         const response = await fetch(url, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'va': va,
-                'signature': signature
-            },
+            headers: { 'Content-Type': 'application/json', 'va': va, 'signature': signature },
             body: bodyEncrypt
         });
 
         const data = await response.json();
-
         if (data.Status === 200) {
             return res.status(200).json({
                 success: true,
